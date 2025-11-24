@@ -1,0 +1,195 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  GO_VERSION: '1.24.1'
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            suffix: .exe
+            binary_name: cs
+            asset_name: cs-windows.exe
+          - goos: linux
+            goarch: amd64
+            suffix: ''
+            binary_name: cs
+            asset_name: cs-linux
+          - goos: linux
+            goarch: arm64
+            suffix: ''
+            binary_name: cs
+            asset_name: cs-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: ''
+            binary_name: cs
+            asset_name: cs-macos-intel
+          - goos: darwin
+            goarch: arm64
+            suffix: ''
+            binary_name: cs
+            asset_name: cs-macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build \
+            -ldflags="-s -w -X main.version=${{ github.ref_name || inputs.version }}" \
+            -o ${{ matrix.asset_name }} \
+            main.go
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 7
+
+  create-release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+            echo "Release ${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "Manual release created via GitHub Actions workflow dispatch." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # Get the previous tag
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+            echo "Release ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "## Changes since $PREVIOUS_TAG" >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+              git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> $GITHUB_OUTPUT
+            else
+              echo "## Changes" >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+              git log --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
+            fi
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version }}
+          name: Release ${{ github.ref_name || inputs.version }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name || inputs.version, '-') }}
+          files: |
+            artifacts/cs-windows.exe
+            artifacts/cs-linux
+            artifacts/cs-linux-arm64
+            artifacts/cs-macos-intel
+            artifacts/cs-macos-arm64
+          generate_release_notes: true
+
+  test:
+    name: Test release
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: cs-linux
+            command: ./cs-linux
+          - os: windows-latest
+            binary: cs-windows.exe
+            command: ./cs-windows.exe
+          - os: macos-latest
+            binary: cs-macos-intel
+            command: ./cs-macos-intel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.binary }}
+          path: .
+
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x ${{ matrix.binary }}
+
+      - name: Test binary help
+        run: ${{ matrix.command }}
+
+      - name: Test binary with no arguments
+        run: ${{ matrix.command }} || true
+
+      - name: Test binary config creation
+        env:
+          HOME: ${{ runner.temp }}
+        run: ${{ matrix.command }} test || true

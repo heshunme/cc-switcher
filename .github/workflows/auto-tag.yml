@@ -1,0 +1,82 @@
+name: Auto Tag
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  auto-tag:
+    name: Auto Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.1'
+
+      - name: Get version from Go module
+        id: version
+        run: |
+          # Get the current version from go.mod or use a default pattern
+          if grep -q "version" main.go; then
+            # Extract version from main.go if it exists
+            VERSION=$(grep -o 'version[[:space:]]*=[[:space:]]*"[^"]*"' main.go | sed 's/.*="//;s/".*//' || echo "")
+          fi
+
+          if [ -z "$VERSION" ]; then
+            # If no version found, use git commit count + tag
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            COMMIT_COUNT=$(git rev-list --count $LAST_TAG..HEAD)
+
+            if [ "$COMMIT_COUNT" -eq 0 ]; then
+              VERSION=$LAST_TAG
+            else
+              # Extract base version from last tag (remove -beta, -alpha etc.)
+              BASE_VERSION=$(echo $LAST_TAG | sed 's/-.*//')
+              # Increment patch version
+              MAJOR=$(echo $BASE_VERSION | sed 's/v//' | cut -d. -f1)
+              MINOR=$(echo $BASE_VERSION | sed 's/v//' | cut -d. -f2)
+              PATCH=$(echo $BASE_VERSION | sed 's/v//' | cut -d. -f3)
+              PATCH=$((PATCH + COMMIT_COUNT))
+              VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            fi
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Determined version: $VERSION"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse --verify "refs/tags/${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.version.outputs.version }} already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.version.outputs.version }} does not exist"
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a ${{ steps.version.outputs.version }} -m "Release ${{ steps.version.outputs.version }}"
+          git push origin ${{ steps.version.outputs.version }}
+
+      - name: Trigger release workflow
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: new-release
+          client-payload: '{"version": "${{ steps.version.outputs.version }}"}'
