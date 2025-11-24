@@ -106,6 +106,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
       - name: Generate changelog
         id: changelog
@@ -133,11 +134,11 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || inputs.version }}
-          name: Release ${{ github.ref_name || inputs.version }}
+          tag_name: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          name: Release ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version }}
           body: ${{ steps.changelog.outputs.CHANGELOG }}
           draft: false
-          prerelease: ${{ contains(github.ref_name || inputs.version, '-') }}
+          prerelease: ${{ contains((github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version), '-') }}
           files: |
             artifacts/cs-windows.exe
             artifacts/cs-linux
