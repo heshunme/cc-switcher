@@ -117,16 +117,16 @@ jobs:
             # Get the previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
-            # Build changelog content in variable
-            CHANGELOG_CONTENT="Release ${{ github.ref_name }}"
-            CHANGELOG_CONTENT="$CHANGELOG_CONTENT\n"
+            # Build changelog content in variable using $'...' syntax for proper newline handling
+            CHANGELOG_CONTENT=$'Release ${{ github.ref_name }}'
+            CHANGELOG_CONTENT+=$'\n'
 
             if [ -n "$PREVIOUS_TAG" ]; then
-              CHANGELOG_CONTENT="$CHANGELOG_CONTENT\n## Changes since $PREVIOUS_TAG\n"
-              CHANGELOG_CONTENT="$CHANGELOG_CONTENT\n$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)"
+              CHANGELOG_CONTENT+=$'\n## Changes since $PREVIOUS_TAG\n'
+              CHANGELOG_CONTENT+=$'\n'"$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)"
             else
-              CHANGELOG_CONTENT="$CHANGELOG_CONTENT\n## Changes\n"
-              CHANGELOG_CONTENT="$CHANGELOG_CONTENT\n$(git log --pretty=format:"- %s (%h)")"
+              CHANGELOG_CONTENT+=$'\n## Changes\n'
+              CHANGELOG_CONTENT+=$'\n'"$(git log --pretty=format:"- %s (%h)")"
             fi
 
             # Output as single heredoc
