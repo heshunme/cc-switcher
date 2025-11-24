@@ -161,7 +161,7 @@ func main() {
 		fmt.Println("Usage: cs <environment>")
 		fmt.Println("Available environments:")
 		printAvailableEnvironments()
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	environment := os.Args[1]
