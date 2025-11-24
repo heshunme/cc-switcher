@@ -122,7 +122,7 @@ jobs:
             CHANGELOG_CONTENT+=$'\n'
 
             if [ -n "$PREVIOUS_TAG" ]; then
-              CHANGELOG_CONTENT+=$'\n## Changes since $PREVIOUS_TAG\n'
+              CHANGELOG_CONTENT+=$'\n## Changes since '"$PREVIOUS_TAG"$'\n'
               CHANGELOG_CONTENT+=$'\n'"$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD)"
             else
               CHANGELOG_CONTENT+=$'\n## Changes\n'
