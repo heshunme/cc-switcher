@@ -111,33 +111,23 @@ jobs:
         id: changelog
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            {
-              echo "CHANGELOG<<EOF"
-              echo "Release ${{ inputs.version }}"
-              echo ""
-              echo "Manual release created via GitHub Actions workflow dispatch."
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
+            printf "CHANGELOG<<EOF\nRelease %s\n\nManual release created via GitHub Actions workflow dispatch.\nEOF\n" "${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           else
             # Get the previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
             {
-              echo "CHANGELOG<<EOF"
-              echo "Release ${{ github.ref_name }}"
-              echo ""
+              printf "CHANGELOG<<EOF\nRelease %s\n\n" "${{ github.ref_name }}"
 
               if [ -n "$PREVIOUS_TAG" ]; then
-                echo "## Changes since $PREVIOUS_TAG"
-                echo ""
-                git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD
+                printf "## Changes since %s\n\n" "$PREVIOUS_TAG"
+                git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD
               else
-                echo "## Changes"
-                echo ""
+                printf "## Changes\n\n"
                 git log --pretty=format:"- %s (%h)"
               fi
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
+              printf "EOF\n"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create release
