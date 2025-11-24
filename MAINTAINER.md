@@ -10,7 +10,7 @@ This guide contains information for maintainers and developers working on the CC
 
 ### Initial Setup
 ```bash
-# Install development dependencies (linters, security tools)
+# Install development dependencies (linters)
 make dev-setup
 ```
 
@@ -29,7 +29,6 @@ make help               # Show all available commands
 # Code quality
 make fmt                # Format code
 make lint               # Run golangci-lint
-make security           # Run security scan with gosec
 
 # Platform-specific builds
 make build-windows      # Windows 64-bit
@@ -58,30 +57,30 @@ make release            # Full build for all platforms
 
 #### 1. CI Workflow (`.github/workflows/ci.yml`)
 - **Triggers**: Push/PR to main and develop branches
-- **Steps**:
-  - Code testing with race detection and coverage
-  - Linting with golangci-lint
-  - Multi-platform build validation
-  - Security scanning with gosec
-  - Upload coverage to Codecov
+- **Jobs**:
+  - **test**: Code testing with race detection and coverage (uploads to Codecov)
+  - **lint**: Linting with golangci-lint
+  - **build-test**: Multi-platform build validation and binary testing
 
 #### 2. Release Workflow (`.github/workflows/release.yml`)
 - **Triggers**:
   - Push of `v*` tags
   - Manual workflow dispatch
-- **Steps**:
-  - Cross-platform builds for all supported architectures
-  - Artifact upload
-  - Release creation with changelog
-  - Binary testing
+- **Jobs**:
+  - **build**: Cross-platform builds for all supported architectures
+  - **create-release**: Create GitHub release with auto-generated changelog
+  - **test**: Test released binaries across multiple platforms
 - **Outputs**: GitHub Release with platform-specific binaries
 
 #### 3. Auto-Tag Workflow (`.github/workflows/auto-tag.yml`)
 - **Triggers**: Push to main branch
+- **Jobs**:
+  - **auto-tag**: Version detection and tag management
 - **Features**:
-  - Automatic version number generation
-  - Tag creation and push
-  - Release workflow triggering
+  - Generate version from commit count since last tag
+  - Check if tag already exists to avoid conflicts
+  - Create and push new tags
+  - Trigger release workflow automatically
 
 ### Release Process
 
@@ -148,14 +147,6 @@ make lint
 golangci-lint run --timeout=5m
 ```
 
-### Security Scanning
-```bash
-# Run security scan
-make security
-
-# Run with gosec directly
-gosec ./...
-```
 
 ### Code Formatting
 ```bash

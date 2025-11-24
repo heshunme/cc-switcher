@@ -111,29 +111,33 @@ jobs:
         id: changelog
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-            echo "Release ${{ inputs.version }}" >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
-            echo "Manual release created via GitHub Actions workflow dispatch." >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "CHANGELOG<<EOF"
+              echo "Release ${{ inputs.version }}"
+              echo ""
+              echo "Manual release created via GitHub Actions workflow dispatch."
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           else
             # Get the previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
-            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-            echo "Release ${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
+            {
+              echo "CHANGELOG<<EOF"
+              echo "Release ${{ github.ref_name }}"
+              echo ""
 
-            if [ -n "$PREVIOUS_TAG" ]; then
-              echo "## Changes since $PREVIOUS_TAG" >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-              git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> $GITHUB_OUTPUT
-            else
-              echo "## Changes" >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-              git log --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
-            fi
-            echo "EOF" >> $GITHUB_OUTPUT
+              if [ -n "$PREVIOUS_TAG" ]; then
+                echo "## Changes since $PREVIOUS_TAG"
+                echo ""
+                git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD
+              else
+                echo "## Changes"
+                echo ""
+                git log --pretty=format:"- %s (%h)"
+              fi
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           fi
 
       - name: Create release

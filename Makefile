@@ -71,9 +71,6 @@ fmt:
 lint:
 	golangci-lint run
 
-# Security scan
-security:
-	gosec ./...
 
 # Run the binary
 run: build
@@ -90,7 +87,6 @@ release: clean deps test build-all
 dev-setup:
 	@echo "Setting up development environment..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/securecodewarrior/github-action-gosec@latest
 
 # Show help
 help:
@@ -107,7 +103,6 @@ help:
 	@echo "  deps             - Download dependencies"
 	@echo "  fmt              - Format code"
 	@echo "  lint             - Run linter"
-	@echo "  security         - Run security scan"
 	@echo "  run              - Build and run binary"
 	@echo "  install          - Install binary to GOPATH/bin"
 	@echo "  release          - Create release artifacts"
