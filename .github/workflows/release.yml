@@ -119,40 +119,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug event data
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Full event: ${{ toJson(github.event) }}"
-          echo "Client payload: ${{ toJson(github.event.client_payload) }}"
-
       - name: Extract version
         id: version
         run: |
-          echo "=== Version Extraction Debug ==="
-          echo "Event name: ${{ github.event_name }}"
-
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "Repository dispatch detected"
-            echo "Direct access test: '${{ github.event.client_payload.version }}'"
-            echo "Client payload JSON: '${{ toJson(github.event.client_payload) }}'"
-
             VERSION="${{ github.event.client_payload.version }}"
-            echo "Extracted via direct access: '$VERSION'"
-
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Workflow dispatch detected"
             VERSION="${{ inputs.version }}"
           elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "Push to tag detected"
             VERSION="${{ github.ref_name }}"
           else
             echo "Unknown trigger: ${{ github.event_name }}"
             exit 1
           fi
-
-          echo "Final extracted version: '$VERSION'"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version for release: $VERSION"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
