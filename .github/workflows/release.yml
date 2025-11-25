@@ -73,6 +73,21 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client.payload.version }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="unknown"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version for build: $VERSION"
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -80,7 +95,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           go build \
-            -ldflags="-s -w -X main.version=${{ github.ref_name || inputs.version }}" \
+            -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" \
             -o ${{ matrix.asset_name }} \
             main.go
 
@@ -107,18 +122,18 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
-            VERSION="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client.payload.version }}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
-          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client.payload.version }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
           else
             echo "Unknown trigger: ${{ github.event_name }}"
             exit 1
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
+          echo "Extracted version for release: $VERSION"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
