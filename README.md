@@ -1,6 +1,6 @@
 # CC Switcher
 
-English [![简体中文](https://img.shields.io/badge/Language-简体中文-red.svg)](README_CN.md)
+**English** | [简体中文](./README_CN.md)
 
 A command-line tool for quickly launching specified commands with specific environment variables, especially suitable for rapidly starting Claude Code with different model configurations.
 

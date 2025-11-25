@@ -1,6 +1,6 @@
 # CC Switcher
 
-[![English](https://img.shields.io/badge/Language-English-blue.svg)](README.md) 简体中文
+[English](./README.md) | **简体中文**
 
 一个用于快速使用特定环境变量启动指定命令的命令行工具，尤其适用于快速使用不同模型配置快速启动claude code。
 
