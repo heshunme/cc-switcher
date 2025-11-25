@@ -10,6 +10,8 @@ on:
         description: 'Release version (e.g., v1.0.0)'
         required: true
         default: 'v1.0.0'
+  repository_dispatch:
+    types: [new-release]
 
 env:
   GO_VERSION: '1.24.1'
