@@ -104,6 +104,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client.payload.version }}"
+          else
+            echo "Unknown trigger: ${{ github.event_name }}"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -114,13 +130,13 @@ jobs:
         id: changelog
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            printf "CHANGELOG<<EOF\nRelease %s\n\nManual release created via GitHub Actions workflow dispatch.\nEOF\n" "${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            printf "CHANGELOG<<EOF\nRelease %s\n\nManual release created via GitHub Actions workflow dispatch.\nEOF\n" "${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
           else
             # Get the previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
             # Build changelog content in variable using $'...' syntax for proper newline handling
-            CHANGELOG_CONTENT=$'Release ${{ github.ref_name }}'
+            CHANGELOG_CONTENT=$'Release ${{ steps.version.outputs.version }}'
             CHANGELOG_CONTENT+=$'\n'
 
             if [ -n "$PREVIOUS_TAG" ]; then
@@ -138,11 +154,11 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version }}
-          name: Release ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.CHANGELOG }}
           draft: false
-          prerelease: ${{ contains((github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.version), '-') }}
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
           files: |
             artifacts/cs-windows.exe
             artifacts/cs-linux
