@@ -119,6 +119,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Debug event data
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Full event: ${{ toJson(github.event) }}"
+          echo "Client payload: ${{ toJson(github.event.client_payload) }}"
+
       - name: Extract version
         id: version
         run: |
