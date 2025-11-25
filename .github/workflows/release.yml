@@ -77,7 +77,7 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client.payload.version }}"
+            VERSION="${{ github.event.client_payload.version }}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
           elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
@@ -128,16 +128,29 @@ jobs:
       - name: Extract version
         id: version
         run: |
+          echo "=== Version Extraction Debug ==="
+          echo "Event name: ${{ github.event_name }}"
+
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client.payload.version }}"
+            echo "Repository dispatch detected"
+            echo "Direct access test: '${{ github.event.client_payload.version }}'"
+            echo "Client payload JSON: '${{ toJson(github.event.client_payload) }}'"
+
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "Extracted via direct access: '$VERSION'"
+
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Workflow dispatch detected"
             VERSION="${{ inputs.version }}"
           elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "Push to tag detected"
             VERSION="${{ github.ref_name }}"
           else
             echo "Unknown trigger: ${{ github.event_name }}"
             exit 1
           fi
+
+          echo "Final extracted version: '$VERSION'"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version for release: $VERSION"
 
